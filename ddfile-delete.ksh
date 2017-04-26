@@ -13,10 +13,12 @@
 # 11/28/16 Diana Yang   New script
 #################################################################
 
+DIR=/home/ddboost/scripts/cloud-dr
+
 function show_usage {
-print "usage: ddfile-delete.ksh -d <Directory> -r <Retention in days> -f <force>" 
+print "usage: ddfile-delete.ksh -d <Directory> -r <Retention in days> -f <yes>" 
 print "  -d : Directory\n  -r : Retention (in days)"
-print "  -f : yes"
+print "  -f : yes if old files should be deleted"
 }
 
 
@@ -24,11 +26,11 @@ while getopts ":d:r:f:" opt; do
   case $opt in
     d ) dir=$OPTARG;;
     r ) ret=$OPTARG;;
-    f ) yes=$OPTARG;;
+    f ) confirm=$OPTARG;;
   esac
 done
 
-echo $dir $ret $yes
+echo $dir $ret $confirm
 
 # Check required parameters
 if test $dir && test $ret 
@@ -43,18 +45,31 @@ if [[ ! -d $dir ]]; then
     print "Directory $dir does not exist"
     exit 1
 fi
+postfixn=`echo $dir | awk -F "/" '{print $NF}'`
+/bin/rm $DIR/$postfixn-delete-list
 
-if test $yes
+if [[ $confirm = "yes" || $confirm = "Yes" || $confirm = "YES" ]] 
 then
-   find $dir -type f -mtime +$ret  -exec /bin/rm {} \; 
+   echo "Delete files in directory $dir older than $ret days"
+#   echo "$dir $ret $postfixn"
+   find $dir -type f -mtime +$ret | grep -v "snapshot" >$DIR/$postfixn-delete-list 
+  
+   ls -l  $DIR/$postfixn-delete-list
+   
+   while IFS= read -r line
+   do
+      /bin/rm $line
+       echo $line
 
-   if [ $? -ne 0 ]; then
-    echo "deletion failed"
-    exit 1
-fi
+       if [ $? -ne 0 ]; then
+          echo "deletion failed"
+          exit 1
+       fi
+   done < $DIR/$postfixn-delete-list
+   
+#   /bin/rm $DIR/$postfixn-delete-list
 else
-   echo directory is $dir
-   #"find $dir -type f -mtime +$ret |  grep -v "snapshot" " 
+   echo "List the files in directory $dir"
    find $dir -type f -mtime +$ret |  grep -v "snapshot"
 fi
 
