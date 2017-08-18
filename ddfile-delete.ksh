@@ -11,9 +11,9 @@
 #
 # Changes:
 # 11/28/16 Diana Yang   New script
+# 08/17/17 Diana Yang   Eliminate the need to specify the script directory
 #################################################################
 
-DIR=/home/ddboost/scripts/cloud-dr
 
 function show_usage {
 print "usage: ddfile-delete.ksh -d <Directory> -r <Retention in days> -f <yes>" 
@@ -40,6 +40,16 @@ else
   show_usage
   exit 1
 fi
+
+DIRcurrent=$0
+DIR=`echo $DIRcurrent |  awk 'BEGIN{FS=OFS="/"}{NF--; print}'`
+#echo " DIR is $DIR, the file is $DIR/file-in-sdir"
+if [[ $DIR = "." ]]; 
+then   DIR=`pwd`   
+       echo $DIR
+fi
+
+
 
 if [[ ! -d $dir ]]; then
     print "Directory $dir does not exist"
