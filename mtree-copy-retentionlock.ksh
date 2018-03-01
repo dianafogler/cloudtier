@@ -277,3 +277,10 @@ else
    echo "no retention lock"
    fastcopy
 fi
+
+if test $userid; then
+   echo match the ownership to original directory
+   chown -R $userid:$usergp $tdir
+else
+   echo there is no new files in $sdir
+fi
