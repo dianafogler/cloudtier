@@ -150,7 +150,7 @@ do
         userid=`ls -ld $sdir$mdir | awk '{print $3}'`
         usergp=`ls -ld $sdir$mdir | awk '{print $4}'`
         echo userid is $userid groupid is $usergp
-        chown $userid:$usergp $tdir$mdir
+        chown -R $userid:$usergp $tdir$mdir
     fi
     bfile=`echo $line | awk -F "/" '{print $NF}'`
 #echo file is $bfile
@@ -205,7 +205,7 @@ do
         userid=`ls -ld $sdir$mdir | awk '{print $3}'`
         usergp=`ls -ld $sdir$mdir | awk '{print $4}'`
         echo userid is $userid groupid is $usergp
-        chown $userid:$usergp $tdir$mdir
+        chown -R $userid:$usergp $tdir$mdir
     fi
     bfile=`echo $line | awk -F "/" '{print $NF}'`
     grep -i $line $DIR/file-in-tdir
