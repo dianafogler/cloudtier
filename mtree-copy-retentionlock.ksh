@@ -1,4 +1,3 @@
-
 #!/bin/ksh
 #
 # Name:         mtree-copy-retentionlock.ksh
@@ -26,13 +25,14 @@
 # 02/03/17 Diana Yang   It now can handle files in sub-directories.
 # 03/01/18 Diana Yang   Eliminate the need to specify the script directory
 # 03/01/18 Diana Yang   Handle wild charactor in a directory
+# 05/03/18 Diana Yang   Skip open file
 #################################################################
 
 
 function show_usage {
 print "usage: mtree-copy-retentionlock.ksh -o <full or partial> -d <Data Domain> -u <User> -s <Source Directory> -m <Source
- Mtree> -t <Target Directory> -n <Target Directory> -r <Comparing Days> -l <yes if retention lock should be added to the fi
-le> -k <retention lock days>"
+Mtree> -t <Target Directory> -n <Target Directory> -r <Comparing Days> -l <yes if retention lock should be added to the file
+> -k <retention lock days>"
 print "  -o : full if running full synchronization (first time), no if script runs everyday"
 print "  -d : Data Domain\n  -u : DD user"
 print "  -s : Source Directory\n  -m : Source Mtree (optional)"
@@ -143,41 +143,46 @@ function fastcopy {
 while IFS= read -r line
 do
 #   echo line is $line
-    mdir=`echo $line |  awk -F "/" 'sub(FS $NF,x)' | sed 's/^.//`
-   echo mid directory is $mdir
-    if [[ ! -d $tdir$mdir ]];then
-        mkdir -p $tdir$mdir
-        userid=`ls -ld $sdir$mdir | awk '{print $3}'`
-        usergp=`ls -ld $sdir$mdir | awk '{print $4}'`
-        echo userid is $userid groupid is $usergp
-        chown -R $userid:$usergp $tdir$mdir
-    fi
-    bfile=`echo $line | awk -F "/" '{print $NF}'`
+    filename=$sdir${line:1}
+    fuser $filename
+    if [[ `fuser $filename` -eq 0 ]]; then
+#        echo file $filename is not open file
+        mdir=`echo $line |  awk -F "/" 'sub(FS $NF,x)' | sed 's/^.//`
+        echo mid directory is $mdir
+        if [[ ! -d $tdir$mdir ]];then
+           mkdir -p $tdir$mdir
+           userid=`ls -ld $sdir$mdir | awk '{print $3}'`
+           usergp=`ls -ld $sdir$mdir | awk '{print $4}'`
+           echo userid is $userid groupid is $usergp
+           chown -R $userid:$usergp $tdir$mdir
+        fi
+        bfile=`echo $line | awk -F "/" '{print $NF}'`
 #echo file is $bfile
-    grep -i $line $DIR/file-in-tdir
-    if [ $? -ne 0 ]; then
-         echo "$line is not in $tdir, fastcopy"
-         echo filesys fastcopy source $sm$mdir/$bfile destination $tm$mdir/$bfile >> $DIR/fastcopy.ksh
-         let numline=$numline+1
-#        echo $numline
-    else
-         echo "$line is already in $tdir directlry, skip"
-    fi
-
-    if [[ $numline -eq 20 ]]; then
-#        echo "reached 20"
-        echo "EOF" >> $DIR/fastcopy.ksh
-        chmod 700 $DIR/fastcopy.ksh
-        $DIR/fastcopy.ksh
-
+        grep -i $line $DIR/file-in-tdir
         if [ $? -ne 0 ]; then
-          echo "fastcopy script failed"
-          exit 1
+           echo "$line is not in $tdir, fastcopy"
+           echo filesys fastcopy source $sm$mdir/$bfile destination $tm$mdir/$bfile >> $DIR/fastcopy.ksh
+           let numline=$numline+1
+#          echo $numline
+        else
+           echo "$line is already in $tdir directlry, skip"
         fi
 
-        let numline=0
-        echo "ssh $user@$dd << EOF" > $DIR/fastcopy.ksh
-     fi
+        if [[ $numline -eq 20 ]]; then
+#          echo "reached 20"
+           echo "EOF" >> $DIR/fastcopy.ksh
+           chmod 700 $DIR/fastcopy.ksh
+#          $DIR/fastcopy.ksh
+
+           if [ $? -ne 0 ]; then
+              echo "fastcopy script failed"
+              exit 1
+           fi
+
+           let numline=0
+           echo "ssh $user@$dd << EOF" > $DIR/fastcopy.ksh
+        fi
+    fi
 
 done < $DIR/file-in-sdir
 echo "filesys show space" >> $DIR/fastcopy.ksh
@@ -197,45 +202,52 @@ fi
 function fastcopy_retentionlock {
 while IFS= read -r line
 do
-   mdir=`echo $line |  awk -F "/" 'sub(FS $NF,x)' | sed 's/^.//'`
-   echo directory is $sdir$mdir
-   if [[ ! -d $tdir$mdir ]];then
-        mkdir -p $tdir$mdir
-#        userid=`/usr/bin/ls -dl $sdir$mdir`
-        userid=`ls -ld $sdir$mdir | awk '{print $3}'`
-        usergp=`ls -ld $sdir$mdir | awk '{print $4}'`
-        echo userid is $userid groupid is $usergp
-        chown -R $userid:$usergp $tdir$mdir
+#   echo line is $line
+    filename=$sdir${line:1}
+    fuser $filename
+    if [[ `fuser $filename` -eq 0 ]]; then
+#        echo file $filename is not open file
+       mdir=`echo $line |  awk -F "/" 'sub(FS $NF,x)' | sed 's/^.//'`
+       echo directory is $sdir$mdir
+       if [[ ! -d $tdir$mdir ]];then
+           mkdir -p $tdir$mdir
+#          userid=`/usr/bin/ls -dl $sdir$mdir`
+           userid=`ls -ld $sdir$mdir | awk '{print $3}'`
+           usergp=`ls -ld $sdir$mdir | awk '{print $4}'`
+           echo userid is $userid groupid is $usergp
+           chown -R $userid:$usergp $tdir$mdir
+       fi
+       bfile=`echo $line | awk -F "/" '{print $NF}'`
+       grep -i $line $DIR/file-in-tdir
+       if [ $? -ne 0 ]; then
+           echo "$line is not in $tdir, fastcopy"
+           echo filesys fastcopy source $sm$mdir/$bfile destination $tm$mdir/$bfile >> $DIR/fastcopy.ksh
+
+           locktime=$(/bin/date '+%Y%m%d%H%M' -d "+$lockday days")
+           echo $locktime
+           echo "touch -a -t $locktime $tdir$mdir/$bfile" >> $DIR/setretention.ksh
+           let numline=$numline+1
+#          echo $numline
+       else
+           echo "$line is already in $tdir directlry, skip"
+       fi
+
+       if [[ $numline -eq 20 ]]; then
+#          echo "reached 20"
+           echo "EOF" >> $DIR/fastcopy.ksh
+           chmod 700 $DIR/fastcopy.ksh
+           $DIR/fastcopy.ksh
+
+           if [ $? -ne 0 ]; then
+              echo "fastcopy script failed"
+              exit 1
+           fi
+
+           let numline=0
+           echo "ssh $user@$dd << EOF" > $DIR/fastcopy.ksh
+       fi
+
     fi
-    bfile=`echo $line | awk -F "/" '{print $NF}'`
-    grep -i $line $DIR/file-in-tdir
-    if [ $? -ne 0 ]; then
-         echo "$line is not in $tdir, fastcopy"
-         echo filesys fastcopy source $sm$mdir/$bfile destination $tm$mdir/$bfile >> $DIR/fastcopy.ksh
-
-         locktime=$(/bin/date '+%Y%m%d%H%M' -d "+$lockday days")
-         echo $locktime
-         echo "touch -a -t $locktime $tdir$mdir/$bfile" >> $DIR/setretention.ksh
-         let numline=$numline+1
-#        echo $numline
-    else
-         echo "$line is already in $tdir directlry, skip"
-    fi
-
-    if [[ $numline -eq 20 ]]; then
-#        echo "reached 20"
-        echo "EOF" >> $DIR/fastcopy.ksh
-        chmod 700 $DIR/fastcopy.ksh
-        $DIR/fastcopy.ksh
-
-        if [ $? -ne 0 ]; then
-          echo "fastcopy script failed"
-          exit 1
-        fi
-
-        let numline=0
-        echo "ssh $user@$dd << EOF" > $DIR/fastcopy.ksh
-     fi
 
 done < $DIR/file-in-sdir
 echo "filesys show space" >> $DIR/fastcopy.ksh
