@@ -144,7 +144,7 @@ while IFS= read -r line
 do
 #   echo line is $line
     filename=$sdir${line:1}
-    fuser $filename
+#   fuser $filename
     if [[ `fuser $filename` -eq 0 ]]; then
 #        echo file $filename is not open file
         mdir=`echo $line |  awk -F "/" 'sub(FS $NF,x)' | sed 's/^.//`
@@ -204,7 +204,7 @@ while IFS= read -r line
 do
 #   echo line is $line
     filename=$sdir${line:1}
-    fuser $filename
+#   fuser $filename
     if [[ `fuser $filename` -eq 0 ]]; then
 #        echo file $filename is not open file
        mdir=`echo $line |  awk -F "/" 'sub(FS $NF,x)' | sed 's/^.//'`
