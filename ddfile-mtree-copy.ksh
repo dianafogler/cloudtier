@@ -4,10 +4,10 @@
 #
 # Function:     This script will copy files from one mtree to another mtree
 #               in the same Data Domain using DD fastcopy. This can be used
-#               to keep the long term backup data in a separate mtree even the 
-#               orginal backup data in orginal mtree is deleted by applications. 
-#               The difference between this script and directory fastcopy is 
-#               that this script only copy new backup files to the mtree the 
+#               to keep the long term backup data in a separate mtree even the
+#               orginal backup data in orginal mtree is deleted by applications.
+#               The difference between this script and directory fastcopy is
+#               that this script only copy new backup files to the mtree the
 #               CloudTier is setup. The directory fastcopy also delete data and
 #               should not be used in this situation. The script
 #               is recommended to run once a day or at least once in 5 days. It
@@ -22,7 +22,9 @@
 # 11/28/16 Diana Yang   Change script name and added explanation
 # 01/27/17 Diana Yang   Add full or patial copy option
 # 02/03/17 Diana Yang   It now can handle files in sub-directories.
-# 08/17/17 Diana Yang	Eliminate the need to specify the script directory
+# 08/17/17 Diana Yang   Eliminate the need to specify the script directory
+# 03/01/18 Diana Yang   Handle wild charactor in a directory
+# 05/03/18 Diana Yang   Skip open file
 #################################################################
 
 function show_usage {
@@ -139,41 +141,46 @@ function fastcopy {
 while IFS= read -r line
 do
 #   echo line is $line
-    mdir=`echo $line |  awk -F "/" 'sub(FS $NF,x)' | awk -F "." '{print $2}'`
-   echo mid directory is $mdir
-    if [[ ! -d $tdir$mdir ]];then
-        mkdir -p $tdir$mdir
-        userid=`ls -ld $sdir$mdir | awk '{print $3}'`
-        usergp=`ls -ld $sdir$mdir | awk '{print $4}'`
-        echo userid is $userid groupid is $usergp
-        chown $userid:$usergp $tdir$mdir
+    filename=$sdir${line:1}
+#    fuser $filename
+    if [[ `fuser $filename` -eq 0 ]]; then
+#        echo file $filename is not open file
+       mdir=`echo $line |  awk -F "/" 'sub(FS $NF,x)' | sed 's/^.//`
+       echo mid directory is $mdir
+       if [[ ! -d $tdir$mdir ]];then
+          mkdir -p $tdir$mdir
+          userid=`ls -ld $sdir$mdir | awk '{print $3}'`
+          usergp=`ls -ld $sdir$mdir | awk '{print $4}'`
+          echo userid is $userid groupid is $usergp
+          chown $userid:$usergp $tdir$mdir
+       fi
+       bfile=`echo $line | awk -F "/" '{print $NF}'`
+#      echo file is $bfile
+       grep -i $line $DIR/file-in-tdir
+       if [ $? -ne 0 ]; then
+          echo "$line is not in $tdir, fastcopy"
+          echo filesys fastcopy source $sm$mdir/$bfile destination $tm$mdir/$bfile >> $DIR/fastcopy.ksh
+          let numline=$numline+1
+#         echo $numline
+       else
+          echo "$line is already in $tdir directlry, skip"
+       fi
+
+       if [[ $numline -eq 20 ]]; then
+          echo "reached 20"
+          echo "EOF" >> $DIR/fastcopy.ksh
+          chmod 700 $DIR/fastcopy.ksh
+#          $DIR/fastcopy.ksh
+
+          if [ $? -ne 0 ]; then
+             echo "fastcopy script failed"
+             exit 1
+          fi
+
+          let numline=0
+          echo "ssh $user@$dd << EOF" > $DIR/fastcopy.ksh
+       fi
     fi
-    bfile=`echo $line | awk -F "/" '{print $NF}'`
-#echo file is $bfile
-    grep -i $line $DIR/file-in-tdir
-    if [ $? -ne 0 ]; then
-         echo "$line is not in $tdir, fastcopy"
-         echo filesys fastcopy source $sm$mdir/$bfile destination $tm$mdir/$bfile >> $DIR/fastcopy.ksh
-         let numline=$numline+1
-#        echo $numline
-    else
-         echo "$line is already in $tdir directlry, skip"
-    fi
-
-    if [[ $numline -eq 20 ]]; then
-        echo "reached 20"
-        echo "EOF" >> $DIR/fastcopy.ksh
-        chmod 700 $DIR/fastcopy.ksh
-        $DIR/fastcopy.ksh
-
-        if [ $? -ne 0 ]; then
-          echo "fastcopy script failed"
-          exit 1
-        fi
-
-        let numline=0
-        echo "ssh $user@$dd << EOF" > $DIR/fastcopy.ksh
-     fi
 
 done < $DIR/file-in-sdir
 echo "filesys show space" >> $DIR/fastcopy.ksh
@@ -182,7 +189,7 @@ echo "mtree list" >> $DIR/fastcopy.ksh
 echo "EOF" >> $DIR/fastcopy.ksh
 
 chmod 700 $DIR/fastcopy.ksh
-$DIR/fastcopy.ksh
+#$DIR/fastcopy.ksh
 
 if [ $? -ne 0 ]; then
     echo "fastcopy script failed"
