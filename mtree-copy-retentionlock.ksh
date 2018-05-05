@@ -26,6 +26,11 @@
 # 03/01/18 Diana Yang   Eliminate the need to specify the script directory
 # 03/01/18 Diana Yang   Handle wild charactor in a directory
 # 05/03/18 Diana Yang   Skip open file
+#
+# footnotes:
+# If you use this script and would like to get new code when any fixes are added, 
+# please send an email to diana.h.yang@dell.com. Whenever it is updated, I will send 
+# you an alert.
 #################################################################
 
 
