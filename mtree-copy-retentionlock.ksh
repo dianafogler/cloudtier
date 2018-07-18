@@ -27,6 +27,7 @@
 # 03/01/18 Diana Yang   Handle wild charactor in a directory
 # 05/03/18 Diana Yang   Skip open file
 # 06/28/18 Diana Yang   Add a log directory and logs for troubleshooting
+# 07/17/18 Diana Yang   Add begin time and end time to track the process
 #
 # footnotes:
 # If you use this script and would like to get new code when any fixes are added,
@@ -114,11 +115,12 @@ fi
 if [[ $full = "full" || $full = "Full" || $full = "FULL" ]]; then
      cd $sdir
      find . -type f |  grep -v "snapshot" > $filesdir
-     echo "full search" >> $run_log
+     echo "full search in source directory $sdir at " `/bin/date '+%Y%m%d%H%M%S'` >> $run_log
 else
      if test $ret; then
         cd $sdir
         find . -type f -mtime -$ret|  grep -v "snapshot" > $filesdir
+        echo "Search last $ret days only in source directory $sdir at " `/bin/date '+%Y%m%d%H%M%S'` >> $run_log
      else
         echo "Missing short retention"
         show_usage
@@ -135,10 +137,12 @@ if [[ $full = "full" || $full = "Full" || $full = "FULL" ]]; then
      echo "will run full synchronizsation" >> $run_log
      cd $tdir
      find . -type f | grep -v "snapshot" > $filetdir
+     echo "full search in target directory $tdir at " `/bin/date '+%Y%m%d%H%M%S'` >> $run_log
 else
      if test $ret; then
         cd $tdir
         find . -type f  -mtime -$ret| grep -v "snapshot" > $filetdir
+        echo "Search last $ret days only in target directory $tdir at " `/bin/date '+%Y%m%d%H%M%S'` >> $run_log
      else
         echo "Missing short retention"
         show_usage
@@ -169,6 +173,7 @@ echo "filesys show compression" >> $fastcopy_ksh
 echo "mtree list" >> $fastcopy_ksh
 
 function fastcopy {
+echo "begin fastcopy at " `/bin/date '+%Y%m%d%H%M%S'` >> $run_log
 while IFS= read -r line
 do
 #   echo line is $line
@@ -189,7 +194,7 @@ do
 #echo file is $bfile
         grep -i $line $filetdir
         if [ $? -ne 0 ]; then
-           echo "$line is not in $tdir, fastcopy" >> $run_log
+#           echo "$line is not in $tdir, will copy it from source to target" >> $run_log
            echo filesys fastcopy source $sm$mdir/$bfile destination $tm$mdir/$bfile >> $fastcopy_ksh
            echo fastcopy source $sm$mdir/$bfile destination $tm$mdir/$bfile >> $fastcopy_log
            let numline=$numline+1
@@ -224,12 +229,15 @@ chmod 700 $fastcopy_ksh
 $fastcopy_ksh >> $fastcopy_ksh_log 2>&1
 
 if [ $? -ne 0 ]; then
-    echo "fastcopy script failed" >> $run.log
+    echo "fastcopy script failed at " `/bin/date '+%Y%m%d%H%M%S'` >> $run.log
     exit 1
 fi
+
+echo "fastcopy finished at " `/bin/date '+%Y%m%d%H%M%S'` >> $run_log
 }
 
 function fastcopy_retentionlock {
+echo "begin fastcopy at " `/bin/date '+%Y%m%d%H%M%S'` >> $run_log
 while IFS= read -r line
 do
 #   echo line is $line
@@ -250,7 +258,7 @@ do
        bfile=`echo $line | awk -F "/" '{print $NF}'`
        grep -i $line $filetdir
        if [ $? -ne 0 ]; then
-           echo "$line is not in $tdir, fastcopy" >> $run_log
+#           echo "$line is not in $tdir, will copy it from source to target" >> $run_log
            echo filesys fastcopy source $sm$mdir/$bfile destination $tm$mdir/$bfile >> $fastcopy_ksh
            echo fastcopy source $sm$mdir/$bfile destination $tm$mdir/$bfile >> $fastcopy_log
 
@@ -291,12 +299,16 @@ chmod 700 $fastcopy_ksh
 $fastcopy_ksh >> $fastcopy_ksh_log 2>&1
 
 if [ $? -ne 0 ]; then
-    echo "fastcopy script failed" >> $run_log
+    echo "fastcopy script failed at " `/bin/date '+%Y%m%d%H%M%S'` >> $run_log
     exit 1
 fi
 
+echo "fastcopy finished at " `/bin/date '+%Y%m%d%H%M%S'` >> $run_log
+
+echo "begin setting retention lock at " `/bin/date '+%Y%m%d%H%M%S'` >> $run_log
 chmod 700 $setret_ksh
 $setret_ksh > $setret_log
+echo "setting retention lock finished at " `/bin/date '+%Y%m%d%H%M%S'` >> $run_log
 
 if [ $? -ne 0 ]; then
     echo "Set Retention failed" >> $run_log
