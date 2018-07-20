@@ -28,6 +28,7 @@
 # 05/03/18 Diana Yang   Skip open file
 # 06/28/18 Diana Yang   Add a log directory and logs for troubleshooting
 # 07/17/18 Diana Yang   Add begin time and end time to track the process
+# 07/19/18 Diana Yang   Add force option to fastcopy to make sure all necessary files are copied
 #
 # footnotes:
 # If you use this script and would like to get new code when any fixes are added,
@@ -182,7 +183,7 @@ do
     if [[ `fuser $filename` -eq 0 ]]; then
 #        echo file $filename is not open file
         mdir=`echo $line |  awk -F "/" 'sub(FS $NF,x)' | sed 's/^.//`
-        echo mid directory is $mdir >> $run_log
+        echo directory is $sdir$mdir >> $run_log
         if [[ ! -d $tdir$mdir ]];then
            mkdir -p $tdir$mdir
            userid=`ls -ld $sdir$mdir | awk '{print $3}'`
@@ -195,8 +196,8 @@ do
         grep -i $line $filetdir
         if [ $? -ne 0 ]; then
 #           echo "$line is not in $tdir, will copy it from source to target" >> $run_log
-           echo filesys fastcopy source $sm$mdir/$bfile destination $tm$mdir/$bfile >> $fastcopy_ksh
-           echo fastcopy source $sm$mdir/$bfile destination $tm$mdir/$bfile >> $fastcopy_log
+           echo filesys fastcopy source $sm$mdir/$bfile destination $tm$mdir/$bfile force>> $fastcopy_ksh
+           echo fastcopy source $sm$mdir/$bfile destination $tm$mdir/$bfile force >> $fastcopy_log
            let numline=$numline+1
 #          echo $numline
         else
@@ -210,8 +211,7 @@ do
           $fastcopy_ksh >> $fastcopy_ksh_log 2>&1
 
            if [ $? -ne 0 ]; then
-              echo "fastcopy script failed" >> $run_log
-              exit 1
+              echo "fastcopy script failed at " `/bin/date '+%Y%m%d%H%M%S'` >> $run_log
            fi
 
            let numline=0
@@ -230,7 +230,6 @@ $fastcopy_ksh >> $fastcopy_ksh_log 2>&1
 
 if [ $? -ne 0 ]; then
     echo "fastcopy script failed at " `/bin/date '+%Y%m%d%H%M%S'` >> $run.log
-    exit 1
 fi
 
 echo "fastcopy finished at " `/bin/date '+%Y%m%d%H%M%S'` >> $run_log
@@ -258,12 +257,12 @@ do
        bfile=`echo $line | awk -F "/" '{print $NF}'`
        grep -i $line $filetdir
        if [ $? -ne 0 ]; then
-#           echo "$line is not in $tdir, will copy it from source to target" >> $run_log
-           echo filesys fastcopy source $sm$mdir/$bfile destination $tm$mdir/$bfile >> $fastcopy_ksh
-           echo fastcopy source $sm$mdir/$bfile destination $tm$mdir/$bfile >> $fastcopy_log
+           echo "$line is not in $tdir, will copy it from source to target" >> $run_log
+           echo filesys fastcopy source $sm$mdir/$bfile destination $tm$mdir/$bfile force >> $fastcopy_ksh
+           echo fastcopy source $sm$mdir/$bfile destination $tm$mdir/$bfile force >> $fastcopy_log
 
            locktime=$(/bin/date '+%Y%m%d%H%M' -d "+$lockday days")
-           echo $locktime >> $run_log
+           echo "this file $line will be locked until $locktime" >> $run_log
            echo "echo file $tdir$mdir/$bfile cannot be delete until $locktime" >> $setret_ksh
            echo "touch -a -t $locktime $tdir$mdir/$bfile" >> $setret_ksh
            let numline=$numline+1
@@ -279,8 +278,7 @@ do
            $fastcopy_ksh >> $fastcopy_ksh_log 2>&1
 
            if [ $? -ne 0 ]; then
-              echo "fastcopy script failed" >> $run_log
-              exit 1
+              echo "fastcopy script failed when copying $line" >> $run_log
            fi
 
            let numline=0
@@ -300,19 +298,18 @@ $fastcopy_ksh >> $fastcopy_ksh_log 2>&1
 
 if [ $? -ne 0 ]; then
     echo "fastcopy script failed at " `/bin/date '+%Y%m%d%H%M%S'` >> $run_log
-    exit 1
+else
+    echo "fastcopy finished at " `/bin/date '+%Y%m%d%H%M%S'` >> $run_log
 fi
-
-echo "fastcopy finished at " `/bin/date '+%Y%m%d%H%M%S'` >> $run_log
 
 echo "begin setting retention lock at " `/bin/date '+%Y%m%d%H%M%S'` >> $run_log
 chmod 700 $setret_ksh
 $setret_ksh > $setret_log
-echo "setting retention lock finished at " `/bin/date '+%Y%m%d%H%M%S'` >> $run_log
 
 if [ $? -ne 0 ]; then
-    echo "Set Retention failed" >> $run_log
-    exit 1
+    echo "Set Retention failed at " `/bin/date '+%Y%m%d%H%M%S'` >> $run_log
+else
+    echo "setting retention lock finished at " `/bin/date '+%Y%m%d%H%M%S'` >> $run_log
 fi
 
 }
