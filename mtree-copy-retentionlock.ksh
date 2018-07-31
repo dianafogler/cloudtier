@@ -66,7 +66,7 @@ while getopts ":o:d:u:s:t:r:m:n:l:k:" opt; do
   esac
 done
 
-let tret=$ret+3
+let tret=$ret+2
 
 DATE_SUFFIX=`/bin/date '+%Y%m%d%H%M%S'`
 
