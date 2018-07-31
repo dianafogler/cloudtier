@@ -29,6 +29,7 @@
 # 06/28/18 Diana Yang   Add a log directory and logs for troubleshooting
 # 07/17/18 Diana Yang   Add begin time and end time to track the process
 # 07/19/18 Diana Yang   Add force option to fastcopy to make sure all necessary files are copied
+# 07/30/18 Diana Yang   Search 2 more days data in target directory to make sure all files are found
 #
 # footnotes:
 # If you use this script and would like to get new code when any fixes are added,
@@ -64,6 +65,8 @@ while getopts ":o:d:u:s:t:r:m:n:l:k:" opt; do
     k ) lockday=$OPTARG;;
   esac
 done
+
+let tret=$ret+3
 
 DATE_SUFFIX=`/bin/date '+%Y%m%d%H%M%S'`
 
@@ -142,8 +145,8 @@ if [[ $full = "full" || $full = "Full" || $full = "FULL" ]]; then
 else
      if test $ret; then
         cd $tdir
-        find . -type f  -mtime -$ret| grep -v "snapshot" > $filetdir
-        echo "Search last $ret days only in target directory $tdir at " `/bin/date '+%Y%m%d%H%M%S'` >> $run_log
+        find . -type f  -mtime -$tret| grep -v "snapshot" > $filetdir
+        echo "Search last $tret days only in target directory $tdir at " `/bin/date '+%Y%m%d%H%M%S'` >> $run_log
      else
         echo "Missing short retention"
         show_usage
