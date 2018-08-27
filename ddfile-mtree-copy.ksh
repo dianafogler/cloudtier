@@ -43,10 +43,10 @@ et Directory> -r <Comparing Days>"
 print "  -o : full if running full synchronization (first time), no if script
  runs everyday"
 print "  -d : Data Domain\n  -u : DD user"
-print "  -s : Source Directory\n  -m : Source Mtree (optional, start with /data/col1/,  \n If source Mtree is not prov
-ided, we assume it is same as the last field of Source Directory)"
-print "  -t : Target Directory\n  -n : Target Mtree (optional, start with /data/col1/,  \n If target Mtree is not prov
-ided, we assume it is same as the last field of Target Directory)"
+print "  -s : Source Directory\n  -m : Source Mtree (optional, start with /data/col1/,  
+\n If source Mtree is not provided, we assume it is same as the last field of Source Directory)"
+print "  -t : Target Directory\n  -n : Target Mtree (optional, start with /data/col1/,  
+\n If target Mtree is not provided, we assume it is same as the last field of Target Directory)"
 print "  -r : How recent days files will be copied (recommend 5, unit is day)
 "
 }
