@@ -12,6 +12,7 @@
 # Changes:
 # 08/03/18 Diana Yang   New script
 # 08/29/18 Diana Yang   Add remote execute fastcopy script
+# 08/30/18 Diana Yang   Add Oracle recovery window as input
 #
 # footnotes:
 # If you use this script and would like to get new code when any fixes are added,
@@ -22,26 +23,31 @@
 . /home/oracle/.bash_profile
 
 function show_usage {
-echo "usage: incremerge.ksh -h <host> -o <Oracle_sid> -t <backup type> -m <Mount point> -s <Linux server>"
+echo "usage: incremerge.ksh -h <host> -o <Oracle_sid> -w <recovery window> -t <backup type> -m <Mount point> -s <Lin
+ux server>"
 echo " -h : host (optional)"
 echo " -o : ORACLE_SID (optional)"
+echo " -w : Oracle Recovery Window (retention time)"
 echo " -t : backup type: Full or Incre"
 echo " -m : Mount point"
 echo " -s : linux server"
 }
 
-while getopts ":h:o:t:m:" opt; do
+while getopts ":h:o:w:t:m:s:" opt; do
   case $opt in
     h ) host=$OPTARG;;
     o ) oraclesid=$OPTARG;;
+    w ) retday=$OPTARG;;
     t ) type=$OPTARG;;
     m ) mount=$OPTARG;;
     s ) server=$OPTARG;;
   esac
 done
 
+echo $type, $mount, $retday
+
 # Check required parameters
-if test $type && test $mount
+if test $type && test $mount && test $retday
 then
   :
 else
@@ -72,17 +78,6 @@ DIR=`echo $DIRcurrent |  awk 'BEGIN{FS=OFS="/"}{NF--; print}'`
 #echo $DATE_SUFFIX > $DIR/incremerge.time
 echo $DATE_SUFFIX > /tmp/$host.$oraclesid.incremerge.time
 
-if [[ -n $server ]]; then
-     echo "copy $host.$oraclesid.incremerge.time to $server " >> $run.log
-     scp /tmp/$host.$oraclesid.incremerge.time $server:/tmp/$host.$oraclesid.incremerge.time
-     if [ $? -ne 0 ]; then
-        echo "scp /tmp/$host.$oraclesid.incremerge.time failed at " `/bin/date '+%Y%m%d%H%M%S'` >> $run.log
-        exit 1
-     fi
-fi
-
-
-
 if [[ ! -d $DIR/log ]]; then
     echo " $DIR/log does not exist, create it"
     mkdir $DIR/log
@@ -93,14 +88,24 @@ full_dir=$backup_dir/incre/datafile
 archive_dir=$backup_dir/archivelog
 control_dir=$backup_dir/controlfile
 temp_dir=$backup_dir/temp
-run_log=$DIR/log/$host.$oraclesid.incremerge.$DATE_SUFFIX.log
-#echo $host $ORACLE_SID $type
+runlog=$DIR/log/$host.$oraclesid.incremerge.$DATE_SUFFIX.log
+rmanlog=$DIR/log/$host.$oraclesid.rman.$DATE_SUFFIX.log
+#echo $host $ORACLE_SID $type $backup_dir
+
+if [[ -n $server ]]; then
+     echo "copy $host.$oraclesid.incremerge.time to $server " >> $runlog
+     scp /tmp/$host.$oraclesid.incremerge.time $server:/tmp/$host.$oraclesid.incremerge.time
+     if [ $? -ne 0 ]; then
+        echo "scp /tmp/$host.$oraclesid.incremerge.time failed at " `/bin/date '+%Y%m%d%H%M%S'` >> $runlog
+        exit 1
+     fi
+fi
 
 #trim log directory
 find $DIR/log -type f -mtime +7 -exec /bin/rm {} \;
 
 if [ $? -ne 0 ]; then
-    echo "del old logs in $DIR/log failed" >> $run_log
+    echo "del old logs in $DIR/log failed" >> $runlog
     exit 1
 fi
 
@@ -148,14 +153,14 @@ function full_backup {
 
 echo "full backup started at " `/bin/date '+%Y%m%d%H%M%S'`
 
-rman target / log $run_log << EOF
+rman target / log $rmanlog << EOF
 CONFIGURE DEFAULT DEVICE TYPE TO disk;
 CONFIGURE CONTROLFILE AUTOBACKUP ON;
 CONFIGURE CONTROLFILE AUTOBACKUP FORMAT FOR DEVICE TYPE DISK TO '$control_dir/%d_%F.ctl';
 CONFIGURE DEVICE TYPE DISK PARALLELISM 4 BACKUP TYPE TO BACKUPSET;
 CONFIGURE CHANNEL DEVICE TYPE DISK FORMAT   '$full_dir/%d_%T_%U';
 configure retention policy to redundancy 1;
-configure retention policy to recovery window of 30 days;
+configure retention policy to recovery window of $retday days;
 
 delete noprompt datafilecopy all;
 delete datafilecopy like '$full_dir/%';
@@ -181,14 +186,14 @@ function incre_backup {
 
 echo "Incremental backup started at " `/bin/date '+%Y%m%d%H%M%S'`
 
-rman target / log $run_log << EOF
+rman target / log $rmanlog << EOF
 CONFIGURE DEFAULT DEVICE TYPE TO disk;
 CONFIGURE CONTROLFILE AUTOBACKUP ON;
 CONFIGURE CONTROLFILE AUTOBACKUP FORMAT FOR DEVICE TYPE DISK TO '$control_dir/%d_%F.ctl';
 CONFIGURE DEVICE TYPE DISK PARALLELISM 4 BACKUP TYPE TO BACKUPSET;
 CONFIGURE CHANNEL DEVICE TYPE DISK FORMAT   '$temp_dir/%d_%T_%U';
 configure retention policy to redundancy 1;
-configure retention policy to recovery window of 30 days;
+configure retention policy to recovery window of $retday days;
 
 DELETE NOPROMPT OBSOLETE;
 #delete archivelog all completed before "sysdate-25';
@@ -211,19 +216,30 @@ if [[ $type = "full" || $type = "Full" || $type = "FULL" ]]; then
      echo "Full backup"
      full_backup
      if [ $? -ne 0 ]; then
-        echo "full backup failed at " `/bin/date '+%Y%m%d%H%M%S'` >> $run.log
+        echo "full backup failed at " `/bin/date '+%Y%m%d%H%M%S'` >> $runlog
      else
-        echo "full backup finished at " `/bin/date '+%Y%m%d%H%M%S'` >> $run.log
+        echo "full backup finished at " `/bin/date '+%Y%m%d%H%M%S'` >> $runlog
      fi
 elif [[  $type = "incre" || $type = "Incre" || $type = "INCRE" ]]; then
      echo "incremental merge"
      incre_backup
      if [ $? -ne 0 ]; then
-        echo "incremental merge backup failed at " `/bin/date '+%Y%m%d%H%M%S'` >> $run.log
+        echo "incremental merge backup failed at " `/bin/date '+%Y%m%d%H%M%S'` >> $runlog
      else
-        echo "incremental merge backup finished at " `/bin/date '+%Y%m%d%H%M%S'` >> $run.log
+        echo "incremental merge backup finished at " `/bin/date '+%Y%m%d%H%M%S'` >> $runlog
      fi
 else
      echo "backup type entered is not correct. It should be full or incre"
      exit 1
+fi
+
+let retnewday=$retday+7
+# clean old backup longer than  $retnewday
+echo "Clean old backup longer than $retnewday started at " `/bin/date '+%Y%m%d%H%M%S'` >> $runlog
+find $backup_dir/incre -type f -mtime +$retnewday -exec /bin/rm {} \;
+
+if [ $? -ne 0 ]; then
+    echo "Clean old backup failed at " `/bin/date '+%Y%m%d%H%M%S'` >> $runlog
+else
+    echo "Clean old backup finished at " `/bin/date '+%Y%m%d%H%M%S'` >> $runlog
 fi
