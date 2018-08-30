@@ -27,10 +27,10 @@
 #################################################################
 
 function show_usage {
-echo "usage: incremerge-fastcopy.ksh -d <Data Domain> -u <User> -m <Mount Point> -h <host> -o <Oracle_sid> -t <mtree
-> -k <retention lock days>"
+echo "usage: incremerge-fastcopy.ksh -d <Data Domain> -u <DD User> -m <Mount Point> -h <host> -o <Oracle_sid> -t <mt
+ree> -k <retention lock days>"
 echo " -d : Data Domain"
-echo " -u : DD user"
+echo " -u : DD user (administrator role)"
 echo " -m : Mount point"
 echo " -h : host"
 echo " -o : ORACLE_SID"
