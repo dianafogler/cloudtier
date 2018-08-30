@@ -3,11 +3,15 @@
 # Name:         incremerge.fastcopy.ksh
 #
 # Function:     This script will copy files created by RMAN copy files that
-#               are used for incrmenetal merge from one diretory to another
-#               directory in the same mtree with a new date using DD fastcopy.
-#               This step save a full Oracle image backup before they are
-#               updated with new incremental data. The date is determined by
-#               incremerge.ksh script which does RMAN incremental merge backup.
+#               are used for incrmenetal merge from one diretory to two other
+#               directories in the same mtree using DD fasctcopy. This step
+#               saves a full Oracle image backup before they are updated with
+#               new incremental data. One directory is named with the backup date.
+#               The date is determined by incremerge.ksh script which does
+#               RMAN incremental merge backup.The other directory is named with
+#               "recent". The copy that has the backup data will be retention
+#               locked to prevent accidently open or delete. The other copy
+#               can be used to validate the database.
 #               First DD secure login should be set up from this Linux server
 #               to DD. The last field of mount point is assumed to be the same
 #               as the last field of mtree if mtree name is not provided.
