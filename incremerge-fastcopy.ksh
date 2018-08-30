@@ -11,7 +11,7 @@
 #               RMAN incremental merge backup.The other directory is named with
 #               "recent". The copy that has the backup data will be retention
 #               locked to prevent accidently open or delete. The other copy
-#               can be used to validate the database.
+#               can be used to validate the database backup.
 #               First DD secure login should be set up from this Linux server
 #               to DD. The last field of mount point is assumed to be the same
 #               as the last field of mtree if mtree name is not provided.
