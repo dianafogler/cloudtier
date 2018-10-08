@@ -119,7 +119,7 @@ setret_log=$DIR/log/setret_log.$DATE_SUFFIX
 run_log=$DIR/log/mtree-copy-retentionlock.$DATE_SUFFIX.log
 
 #trim log directory
-find $DIR/log -type f -mtime +30 -exec /bin/rm {} \;
+find $DIR/log -type f -mtime +7 -exec /bin/rm {} \;
 
 if [ $? -ne 0 ]; then
     echo "del old logs in $DIR/log failed" >> $run_log
